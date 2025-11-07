@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Balance Manager</title>
+    <style>
+         :root {
+            font-family: Inter, system-ui, Segoe UI, Roboto, Arial;
+            font-size: 16px
+        }
+        
+        body {
+            margin: 0;
+            background: #f4f7fb;
+            color: #0f172a;
+            padding: 24px
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08)
+        }
+        
+        h1 {
+            margin: 0 0 16px;
+            font-size: 20px
+        }
+        
+        form {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 18px
+        }
+        
+        label {
+            display: block;
+            font-size: 13px;
+            margin-bottom: 6px
+        }
+        
+        input,
+        textarea,
+        select {
+            width: 100%;
+            padding: 8px;
+            border-radius: 8px;
+            border: 1px solid #dbe7f0;
+            box-sizing: border-box
+        }
+        
+        textarea {
+            resize: vertical
+        }
+        
+        .full {
+            grid-column: 1/-1
+        }
+        
+        .actions {
+            display: flex;
+            gap: 10px;
+            align-items: center
+        }
+        
+        button {
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 0;
+            background: #2563eb;
+            color: #fff;
+            cursor: pointer
+        }
+        
+        button.ghost {
+            background: #e6eefc;
+            color: #0f172a;
+            border: 1px solid #cfe0ff
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 8px
+        }
+        
+        th,
+        td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #eef3f8;
+            font-size: 14px
+        }
+        
+        .small {
+            font-size: 13px;
+            color: #475569
+        }
+        
+        .money {
+            font-weight: 600
+        }
+        
+        .controls {
+            display: flex;
+            gap: 6px
+        }
+        
+        .btn-sm {
+            padding: 6px 8px;
+            border-radius: 6px;
+            font-size: 13px
+        }
+        
+        .btn-add {
+            background: #10b981
+        }
+        
+        .btn-cut {
+            background: #ef4444
+        }
+        
+        .btn-edit {
+            background: #f59e0b
+        }
+        
+        .btn-del {
+            background: #6b7280
+        }
+        
+        .top-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px
+        }
+        
+        .search {
+            padding: 8px;
+            border-radius: 8px;
+            border: 1px solid #dbe7f0
+        }
+        
+        .note {
+            font-size: 13px;
+            color: #475569
+        }
+        
+        @media (max-width:720px) {
+            form {
+                grid-template-columns: 1fr
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="top-row">
+            <h1>Balance Manager</h1>
+            <div>
+                <input id="search" class="search" placeholder="Search name / phone / Aadhar / PAN" />
+            </div>
+        </div>
+
+        <form id="personForm">
+            <div>
+                <label for="name">Name</label>
+                <input id="name" required />
+            </div>
+            <div>
+                <label for="phone">Phone</label>
+                <input id="phone" inputmode="numeric" placeholder="10 digits" />
+            </div>
+            <div class="full">
+                <label for="address">Address</label>
+                <textarea id="address" rows="2"></textarea>
+            </div>
+            <div>
+                <label for="aadhar">Aadhar</label>
+                <input id="aadhar" inputmode="numeric" placeholder="12 digits" />
+            </div>
+            <div>
+                <label for="pan">PAN</label>
+                <input id="pan" placeholder="ABCDE1234F" />
+            </div>
+            <div>
+                <label for="balance">Initial Balance</label>
+                <input id="balance" inputmode="decimal" placeholder="0.00" />
+            </div>
+            <div class="actions full">
+                <button type="submit">Add Person</button>
+                <button id="clearStorage" class="ghost" type="button">Clear All Data</button>
+                <div style="margin-left:auto" class="note">Data is stored locally in your browser (localStorage).</div>
+            </div>
+        </form>
+
+        <table id="peopleTable">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th class="small">Phone</th>
+                    <th class="small">Aadhar / PAN</th>
+                    <th class="small">Address</th>
+                    <th>Balance</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <template id="rowTemplate">
+    <tr>
+      <td class="name"></td>
+      <td class="small phone"></td>
+      <td class="small idinfo"></td>
+      <td class="small address"></td>
+      <td class="money balance"></td>
+      <td>
+        <div class="controls">
+          <button class="btn-sm btn-add">+ Add</button>
+          <button class="btn-sm btn-cut">- Cut</button>
+          <button class="btn-sm btn-edit">Edit</button>
+          <button class="btn-sm btn-del">Delete</button>
+        </div>
+      </td>
+    </tr>
+  </template>
+
+    <script>
+        // Simple Balance Manager using localStorage
+        const LS_KEY = 'balance_manager_people_v1'
+        const form = document.getElementById('personForm')
+        const tableBody = document.querySelector('#peopleTable tbody')
+        const tpl = document.getElementById('rowTemplate')
+        const search = document.getElementById('search')
+
+        function uid() {
+            return Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
+        }
+
+        function load() {
+            try {
+                const raw = localStorage.getItem(LS_KEY);
+                return raw ? JSON.parse(raw) : []
+            } catch (e) {
+                return []
+            }
+        }
+
+        function save(list) {
+            localStorage.setItem(LS_KEY, JSON.stringify(list))
+        }
+
+        function validatePerson(p) {
+            if (!p.name || p.name.trim().length < 1) return 'Name required'
+            if (p.phone && !/^\d{10}$/.test(p.phone)) return 'Phone must be 10 digits if provided'
+            if (p.aadhar && !/^\d{12}$/.test(p.aadhar)) return 'Aadhar must be 12 digits if provided'
+            if (p.pan && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(p.pan.toUpperCase())) return 'PAN must match pattern ABCDE1234F'
+            if (isNaN(Number(p.balance))) return 'Balance must be a number'
+            return null
+        }
+
+        function formatMoney(n) {
+            return Number(n).toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            })
+        }
+
+        function render(filterText = '') {
+            const list = load()
+            tableBody.innerHTML = ''
+            const q = filterText.trim().toLowerCase()
+            list.forEach(p => {
+                if (q) {
+                    const hay = [p.name, p.phone, p.aadhar, p.pan, (p.address || '')].join(' ').toLowerCase()
+                    if (!hay.includes(q)) return
+                }
+                const tr = tpl.content.cloneNode(true)
+                tr.querySelector('.name').textContent = p.name
+                tr.querySelector('.phone').textContent = p.phone || '-'
+                tr.querySelector('.address').textContent = p.address || '-'
+                tr.querySelector('.idinfo').textContent = (p.aadhar || '-') + ' / ' + (p.pan || '-')
+                tr.querySelector('.balance').textContent = formatMoney(p.balance || 0)
+
+                const row = tr.querySelector('tr')
+                row.dataset.id = p.id
+
+                row.querySelector('.btn-add').addEventListener('click', () => onAdjust(p.id, true))
+                row.querySelector('.btn-cut').addEventListener('click', () => onAdjust(p.id, false))
+                row.querySelector('.btn-edit').addEventListener('click', () => onEdit(p.id))
+                row.querySelector('.btn-del').addEventListener('click', () => onDelete(p.id))
+
+                tableBody.appendChild(row)
+            })
+        }
+
+        function onAdjust(id, isAdd) {
+            const list = load();
+            const idx = list.findIndex(x => x.id === id);
+            if (idx === -1) return alert('Not found')
+            const label = isAdd ? 'amount to add' : 'amount to cut'
+            const str = prompt('Enter ' + label + ' (use negative for subtraction):', '0')
+            if (str === null) return
+            const val = Number(str)
+            if (isNaN(val)) return alert('Enter a valid number')
+            if (!isAdd && (list[idx].balance - val) < 0) { // if cutting larger than current
+                const ok = confirm('Resulting balance would be negative. Proceed?')
+                if (!ok) return
+            }
+            list[idx].balance = Number(list[idx].balance || 0) + (isAdd ? val : -val)
+            save(list);
+            render(search.value)
+        }
+
+        function onEdit(id) {
+            const list = load();
+            const p = list.find(x => x.id === id);
+            if (!p) return
+            const name = prompt('Name', p.name);
+            if (name === null) return
+            const phone = prompt('Phone (10 digits)', p.phone || '')
+            const aadhar = prompt('Aadhar (12 digits)', p.aadhar || '')
+            const pan = prompt('PAN (ABCDE1234F)', p.pan || '')
+            const address = prompt('Address', p.address || '')
+            const balanceStr = prompt('Balance', String(p.balance || 0));
+            if (balanceStr === null) return
+            const updated = {...p,
+                name: name.trim(),
+                phone: (phone || '').trim(),
+                aadhar: (aadhar || '').trim(),
+                pan: (pan || '').trim(),
+                address: (address || '').trim(),
+                balance: Number(balanceStr)
+            }
+            const v = validatePerson(updated)
+            if (v) {
+                return alert('Validation error: ' + v)
+            }
+            const idx = list.findIndex(x => x.id === id)
+            list[idx] = updated
+            save(list);
+            render(search.value)
+        }
+
+        function onDelete(id) {
+            const list = load();
+            const idx = list.findIndex(x => x.id === id);
+            if (idx === -1) return
+            if (!confirm('Delete this person and their balance?')) return
+            list.splice(idx, 1);
+            save(list);
+            render(search.value)
+        }
+
+        form.addEventListener('submit', e => {
+            e.preventDefault()
+            const p = {
+                id: uid(),
+                name: document.getElementById('name').value.trim(),
+                phone: document.getElementById('phone').value.trim(),
+                address: document.getElementById('address').value.trim(),
+                aadhar: document.getElementById('aadhar').value.trim(),
+                pan: document.getElementById('pan').value.trim().toUpperCase(),
+                balance: Number(document.getElementById('balance').value || 0)
+            }
+            const v = validatePerson(p)
+            if (v) return alert('Validation: ' + v)
+            const list = load();
+            list.unshift(p);
+            save(list);
+            render(search.value)
+            form.reset()
+        })
+
+        document.getElementById('clearStorage').addEventListener('click', () => {
+            if (confirm('Clear all stored data? This cannot be undone.')) {
+                localStorage.removeItem(LS_KEY);
+                render()
+            }
+        })
+
+        search.addEventListener('input', () => render(search.value))
+
+        // initial render
+        render()
+    </script>
+</body>
+
+</html>
